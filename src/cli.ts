@@ -484,6 +484,45 @@ cacheCommand
   });
 
 // ---------------------------------------------------------------------------
+// Subcommand: init
+// ---------------------------------------------------------------------------
+program
+  .command('init')
+  .description('Detect coding agents and wire up skannr (MCP server + guard hook)')
+  .option('--root <path>', 'project root directory', process.cwd())
+  .option('--yes', 'skip the confirmation prompt')
+  .option('--agent <name>', 'configure a single agent (claude-code, cursor, kiro, vscode-copilot, gemini-cli)')
+  .option('--global', 'write home-level agent configs instead of project-local')
+  .option('--no-rules', 'do not scaffold a default .skannr/rules.json')
+  .action(async (cmdOpts: { root: string; yes?: boolean; agent?: string; rules?: boolean; global?: boolean }) => {
+    const { runInit } = await import('./init');
+    const confirm = async (plan: Array<{ description: string }>): Promise<boolean> => {
+      process.stdout.write('\n  skannr init will:\n');
+      for (const p of plan) process.stdout.write(`    - ${p.description}\n`);
+      process.stdout.write('\n  Proceed? [y/N] ');
+      const answer = await new Promise<string>((resolve) => {
+        process.stdin.resume();
+        process.stdin.once('data', (d) => {
+          process.stdin.pause();
+          resolve(d.toString().trim().toLowerCase());
+        });
+      });
+      return answer === 'y' || answer === 'yes';
+    };
+    const code = await runInit(
+      {
+        root: cmdOpts.root,
+        yes: cmdOpts.yes,
+        agent: cmdOpts.agent,
+        noRules: cmdOpts.rules === false,
+        global: cmdOpts.global,
+      },
+      confirm,
+    );
+    process.exit(code);
+  });
+
+// ---------------------------------------------------------------------------
 // Subcommand: guard
 // ---------------------------------------------------------------------------
 const guardCommand = program
@@ -586,6 +625,7 @@ program.addHelpText(
   'after',
   `
 Examples:
+  skannr init                              Detect agents + wire up skannr
   skannr "how does auth work?"             Ask about the codebase
   skannr "database queries" -n 5           Limit to 5 results
   skannr "endpoints" --json                JSON output
