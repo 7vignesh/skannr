@@ -525,6 +525,27 @@ program
   });
 
 // ---------------------------------------------------------------------------
+// Subcommand: demo
+// ---------------------------------------------------------------------------
+program
+  .command('demo')
+  .description('Build a throwaway repo with a planted bug and run guard on it')
+  .option('--sample', 'show the sample review without calling a provider')
+  .action(async (cmdOpts: { sample?: boolean }) => {
+    try {
+      const { runDemo } = await import('./demo');
+      const output = await runDemo({ forceSample: cmdOpts.sample });
+      process.stdout.write(output + (output.endsWith('\n') ? '' : '\n'));
+    } catch (error) {
+      console.error(
+        'Error running demo:',
+        error instanceof Error ? error.message : error,
+      );
+      process.exit(2);
+    }
+  });
+
+// ---------------------------------------------------------------------------
 // Subcommand: guard
 // ---------------------------------------------------------------------------
 const guardCommand = program
@@ -628,6 +649,7 @@ program.addHelpText(
   `
 Examples:
   skannr init                              Detect agents + wire up skannr
+  skannr demo                              See a review on a planted-bug repo
   skannr "how does auth work?"             Ask about the codebase
   skannr "database queries" -n 5           Limit to 5 results
   skannr "endpoints" --json                JSON output
