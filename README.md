@@ -50,6 +50,7 @@ skannr guard
 skannr guard --fix
 skannr guard --fix --dry-run
 skannr guard --pr-mode
+skannr guard --base origin/develop
 skannr guard --json
 ```
 
@@ -78,6 +79,52 @@ Custom rules (optional):
   ]
 }
 ```
+
+### GitHub Action
+
+Run guard on every pull request. Add a repository secret named `GEMINI_API_KEY` (or `OPENAI_API_KEY`), then create `.github/workflows/skannr.yml`:
+
+```yaml
+name: Skannr Guard
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write # for the PR comment
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: 7vignesh/skannr@main
+        with:
+          gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
+```
+
+The action reviews the diff between the PR base branch and the PR head, writes the findings to the job summary, uploads the JSON report as the `skannr-guard-report` artifact, and posts or updates one PR comment. The job fails when guard reports blocking violations (a high or critical finding with at least 70% confidence).
+
+| Input | Default | Description |
+|---|---|---|
+| `gemini-api-key` | | Gemini API key. Used when set. |
+| `openai-api-key` | | OpenAI or OpenAI-compatible API key. Used when no Gemini key is set. |
+| `openai-base-url` | `https://api.openai.com/v1` | Base URL for an OpenAI-compatible API. |
+| `model` | provider default | Model name override. |
+| `base` | PR base branch | Branch to diff against. |
+| `fail-on-violations` | `true` | Fail the job when guard reports `fail`. |
+| `comment` | `true` | Post or update a PR comment. Needs `pull-requests: write`. |
+| `github-token` | `github.token` | Token used for the comment. |
+
+Outputs: `status` (`pass`, `fail`, `skipped`, or `error`) and `report-path`.
+
+Behavior to know:
+- No API key: the action skips the review, adds a notice, and passes. Pull requests from forks do not receive secrets, so they are skipped.
+- Tool errors (provider outage, bad key) produce a warning and do not fail the job. Only guard violations fail it.
+- The action sends the PR diff to the provider you configure. Do not use `pull_request_target` with this action: it would run on untrusted fork code with your secrets.
+- `@main` tracks the latest code. Pin to a commit SHA for stable behavior.
 
 ### Other commands
 

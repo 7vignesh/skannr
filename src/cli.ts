@@ -555,6 +555,7 @@ const guardCommand = program
   .option('--fix', 'apply auto-fixes for fixable violations')
   .option('--dry-run', 'show what --fix would change without writing')
   .option('--pr-mode', 'review full PR diff vs base branch')
+  .option('--base <ref>', 'base ref for the PR diff (implies --pr-mode, default: origin/main)')
   .option('--diff-only', 'skip cross-file context (faster, cheaper)')
   .option('--no-cache', 'ignore symbol cache')
   .option('--json', 'output as JSON')
@@ -563,6 +564,7 @@ const guardCommand = program
     fix?: boolean;
     dryRun?: boolean;
     prMode?: boolean;
+    base?: string;
     diffOnly?: boolean;
     noCache?: boolean;
     json?: boolean;
@@ -574,6 +576,7 @@ const guardCommand = program
         fix: cmdOpts.fix,
         dryRun: cmdOpts.dryRun,
         prMode: cmdOpts.prMode,
+        base: cmdOpts.base,
         diffOnly: cmdOpts.diffOnly,
         noCache: cmdOpts.noCache,
         json: cmdOpts.json,
