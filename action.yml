@@ -76,7 +76,7 @@ runs:
       shell: bash
       working-directory: ${{ github.action_path }}
       run: |
-        npm install --no-audit --no-fund --loglevel=error
+        npm install --ignore-scripts --no-audit --no-fund --loglevel=error
         npm run build
 
     - name: Run skannr guard
