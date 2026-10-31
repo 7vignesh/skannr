@@ -502,6 +502,8 @@ program
       process.stdout.write('\n  Proceed? [y/N] ');
       const answer = await new Promise<string>((resolve) => {
         process.stdin.resume();
+        // Closed stdin (non-interactive run without --yes) counts as "no".
+        process.stdin.once('end', () => resolve(''));
         process.stdin.once('data', (d) => {
           process.stdin.pause();
           resolve(d.toString().trim().toLowerCase());

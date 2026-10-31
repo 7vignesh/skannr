@@ -1,6 +1,6 @@
 /**
  * Tests for `skannr init`: MCP merge, agent detection, planning, and apply.
- * All filesystem work happens in an injected temp home/root — never the real home.
+ * All filesystem work happens in an injected temp home/root, never the real home.
  */
 
 import * as fs from 'fs';
@@ -63,6 +63,18 @@ describe('mergeMcpConfig', () => {
     const existing = { someSetting: 42, mcpServers: {} };
     const { config } = mergeMcpConfig(existing);
     expect(config.someSetting).toBe(42);
+  });
+
+  it('writes VS Code format under "servers" with type stdio', () => {
+    const existing = { servers: { other: { type: 'stdio', command: 'foo' } }, inputs: [] };
+    const { config, changed } = mergeMcpConfig(existing, 'servers');
+    expect(changed).toBe(true);
+    expect(config.mcpServers).toBeUndefined();
+    expect(config.inputs).toEqual([]);
+    const servers = config.servers as any;
+    expect(servers.other).toEqual({ type: 'stdio', command: 'foo' });
+    expect(servers.skannr).toEqual({ type: 'stdio', ...entry });
+    expect(mergeMcpConfig(config, 'servers').changed).toBe(false);
   });
 });
 
@@ -154,26 +166,45 @@ describe('planInit + applyInit', () => {
     }
   });
 
-  it('skips gemini-cli project-local (no project config) but writes it with --global', () => {
+  it('writes gemini-cli project-local by default and home-level with --global', () => {
     const home = tmpDir('skannr-home-');
     const root = tmpDir('skannr-root-');
     try {
       const gemini = AGENTS.find((a) => a.key === 'gemini-cli')!;
+      const expected = { command: SKANNR_MCP_ENTRY.command, args: [...SKANNR_MCP_ENTRY.args] };
 
-      // default (project-local): gemini has no project config -> skip entry
-      const localPlan = planInit([gemini], home, root, { scaffoldRules: false });
-      expect(localPlan.map((p) => p.kind)).toEqual(['skip']);
+      applyInit(planInit([gemini], home, root, { scaffoldRules: false }), root);
+      const local = JSON.parse(fs.readFileSync(path.join(root, '.gemini', 'settings.json'), 'utf-8'));
+      expect(local.mcpServers.skannr).toEqual(expected);
+      expect(fs.existsSync(path.join(home, '.gemini'))).toBe(false);
 
-      // --global: writes the home-level config
-      const globalPlan = planInit([gemini], home, root, { scaffoldRules: false, global: true });
-      expect(globalPlan.map((p) => p.kind)).toEqual(['mcp']);
-      const results = applyInit(globalPlan, root);
+      const results = applyInit(planInit([gemini], home, root, { scaffoldRules: false, global: true }), root);
       expect(results[0].status).toBe('written');
-      const geminiCfg = JSON.parse(fs.readFileSync(path.join(home, '.gemini', 'settings.json'), 'utf-8'));
-      expect(geminiCfg.mcpServers.skannr).toEqual({
+      const global = JSON.parse(fs.readFileSync(path.join(home, '.gemini', 'settings.json'), 'utf-8'));
+      expect(global.mcpServers.skannr).toEqual(expected);
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('writes .vscode/mcp.json in VS Code format and skips VS Code with --global', () => {
+    const home = tmpDir('skannr-home-');
+    const root = tmpDir('skannr-root-');
+    try {
+      const vscode = AGENTS.find((a) => a.key === 'vscode-copilot')!;
+
+      applyInit(planInit([vscode], home, root, { scaffoldRules: false }), root);
+      const cfg = JSON.parse(fs.readFileSync(path.join(root, '.vscode', 'mcp.json'), 'utf-8'));
+      expect(cfg.servers.skannr).toEqual({
+        type: 'stdio',
         command: SKANNR_MCP_ENTRY.command,
         args: [...SKANNR_MCP_ENTRY.args],
       });
+      expect(cfg.mcpServers).toBeUndefined();
+
+      const globalPlan = planInit([vscode], home, root, { scaffoldRules: false, global: true });
+      expect(globalPlan.map((p) => p.kind)).toEqual(['skip']);
     } finally {
       fs.rmSync(home, { recursive: true, force: true });
       fs.rmSync(root, { recursive: true, force: true });

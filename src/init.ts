@@ -1,5 +1,5 @@
 /**
- * `skannr init` — one-command onboarding.
+ * `skannr init` - one-command onboarding.
  *
  * Detects installed coding agents, merges the skannr MCP server into their
  * config, installs the guard pre-commit hook, and optionally scaffolds a
@@ -39,6 +39,17 @@ export interface AgentDef {
    * Undefined when the agent has no global config.
    */
   globalConfigPath?: string;
+  /** Top-level key that holds the servers. VS Code uses `servers`. Default `mcpServers`. */
+  serversKey?: ServersKey;
+}
+
+/** Top-level key an MCP config file uses for its server map. */
+export type ServersKey = 'mcpServers' | 'servers';
+
+/** The skannr server entry for a config format. VS Code's format requires `type`. */
+export function mcpEntryFor(serversKey: ServersKey): Record<string, unknown> {
+  const entry = { command: SKANNR_MCP_ENTRY.command, args: [...SKANNR_MCP_ENTRY.args] };
+  return serversKey === 'servers' ? { type: 'stdio', ...entry } : entry;
 }
 
 /** Built-in agent definitions. Order controls prompt/plan ordering. */
@@ -69,11 +80,13 @@ export const AGENTS: AgentDef[] = [
     label: 'VS Code Copilot',
     detectPaths: ['.vscode'],
     projectConfigPath: '.vscode/mcp.json',
+    serversKey: 'servers',
   },
   {
     key: 'gemini-cli',
     label: 'Gemini CLI',
-    detectPaths: ['~/.gemini'],
+    detectPaths: ['~/.gemini', '.gemini'],
+    projectConfigPath: '.gemini/settings.json',
     globalConfigPath: '~/.gemini/settings.json',
   },
 ];
@@ -96,29 +109,33 @@ export function detectAgents(home: string, root: string): AgentDef[] {
 
 /**
  * Merge the skannr MCP entry into an existing MCP config object.
- * Pure: never touches the filesystem. Preserves other servers.
- * Returns `{ config, changed }` — `changed` is false when skannr is already present and identical.
+ * Pure: never touches the filesystem. Preserves other servers and keys.
+ * Returns `{ config, changed }`. `changed` is false when skannr is already present and identical.
  */
-export function mergeMcpConfig(existing: unknown): { config: Record<string, unknown>; changed: boolean } {
+export function mergeMcpConfig(
+  existing: unknown,
+  serversKey: ServersKey = 'mcpServers',
+): { config: Record<string, unknown>; changed: boolean } {
   const base: Record<string, unknown> =
     existing && typeof existing === 'object' && !Array.isArray(existing)
       ? { ...(existing as Record<string, unknown>) }
       : {};
 
+  const rawServers = base[serversKey];
   const servers: Record<string, unknown> =
-    base.mcpServers && typeof base.mcpServers === 'object' && !Array.isArray(base.mcpServers)
-      ? { ...(base.mcpServers as Record<string, unknown>) }
+    rawServers && typeof rawServers === 'object' && !Array.isArray(rawServers)
+      ? { ...(rawServers as Record<string, unknown>) }
       : {};
 
   const current = servers.skannr;
-  const next = { command: SKANNR_MCP_ENTRY.command, args: [...SKANNR_MCP_ENTRY.args] };
+  const next = mcpEntryFor(serversKey);
 
   if (current && JSON.stringify(current) === JSON.stringify(next)) {
     return { config: base, changed: false };
   }
 
   servers.skannr = next;
-  base.mcpServers = servers;
+  base[serversKey] = servers;
   return { config: base, changed: true };
 }
 
@@ -129,6 +146,8 @@ export interface PlanEntry {
   target: string;
   /** What will happen, for the confirm prompt. */
   description: string;
+  /** For `mcp` entries: the top-level servers key of the target file. */
+  serversKey?: ServersKey;
 }
 
 /** Default rules written when scaffolding `.skannr/rules.json`. */
@@ -185,6 +204,7 @@ export function planInit(
       kind: 'mcp',
       target,
       description: `${exists ? 'Update' : 'Create'} ${agent.label} MCP config: add skannr server`,
+      serversKey: agent.serversKey ?? 'mcpServers',
     });
   }
 
@@ -218,11 +238,12 @@ export interface ApplyResult {
 }
 
 /** Write the skannr MCP entry into a config file, merging with existing content. */
-function applyMcp(target: string): ApplyResult {
+function applyMcp(target: string, serversKey: ServersKey): ApplyResult {
   const entry: PlanEntry = {
     kind: 'mcp',
     target,
     description: '',
+    serversKey,
   };
 
   let existing: unknown;
@@ -238,7 +259,7 @@ function applyMcp(target: string): ApplyResult {
     }
   }
 
-  const { config, changed } = mergeMcpConfig(existing);
+  const { config, changed } = mergeMcpConfig(existing, serversKey);
   if (!changed) {
     return { entry, status: 'unchanged', message: `Already configured: ${target}` };
   }
@@ -256,7 +277,7 @@ export function applyInit(plan: PlanEntry[], root: string): ApplyResult[] {
     if (entry.kind === 'skip') {
       results.push({ entry, status: 'skipped', message: entry.description });
     } else if (entry.kind === 'mcp') {
-      results.push(applyMcp(entry.target));
+      results.push(applyMcp(entry.target, entry.serversKey ?? 'mcpServers'));
     } else if (entry.kind === 'hook') {
       const { installed, message } = installHook(root);
       results.push({
@@ -332,10 +353,6 @@ export async function runInit(
   if (actionable.length === 0) {
     for (const p of plan) process.stdout.write(`  ! ${p.description}\n`);
     process.stdout.write('\nNothing to configure for the selected scope.\n');
-    return 0;
-  }
-  if (plan.length === 0) {
-    process.stdout.write('Nothing to do — everything is already configured.\n');
     return 0;
   }
 
