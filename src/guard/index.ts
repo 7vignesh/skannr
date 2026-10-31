@@ -15,6 +15,8 @@ export interface GuardCliOptions {
   fix?: boolean;
   dryRun?: boolean;
   prMode?: boolean;
+  /** Base ref for --pr-mode (e.g. origin/develop). Implies prMode. */
+  base?: string;
   diffOnly?: boolean;
   noCache?: boolean;
   json?: boolean;
@@ -25,12 +27,22 @@ export interface GuardCliOptions {
  * Exit codes: 0 = pass, 1 = fail (violations), 2 = tool error.
  */
 export async function runGuard(options: GuardCliOptions): Promise<{ result: GuardResult; exitCode: number }> {
-  const { root, fix = false, dryRun = false, prMode = false, diffOnly = false, noCache = false } = options;
+  const { root, fix = false, dryRun = false, prMode = false, base, diffOnly = false, noCache = false } = options;
   const absoluteRoot = path.resolve(root);
 
   // Get PR diff if in --pr-mode
   let diffContent: string | undefined;
-  if (prMode) {
+  if (base !== undefined) {
+    if (base === '' || base.startsWith('-')) {
+      throw new Error(`Invalid --base ref: "${base}"`);
+    }
+    const { execFileSync } = await import('child_process');
+    diffContent = execFileSync('git', ['diff', `${base}...HEAD`], {
+      cwd: absoluteRoot,
+      encoding: 'utf-8',
+      maxBuffer: 10 * 1024 * 1024,
+    });
+  } else if (prMode) {
     const { execSync } = await import('child_process');
     try {
       diffContent = execSync('git diff origin/main...HEAD', {

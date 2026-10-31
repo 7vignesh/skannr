@@ -1,0 +1,183 @@
+name: 'Skannr Guard'
+description: 'Review pull request changes against your rules with skannr guard'
+author: '7vignesh'
+branding:
+  icon: 'shield'
+  color: 'green'
+
+inputs:
+  gemini-api-key:
+    description: 'Gemini API key. Pass from a secret. Used when set.'
+    required: false
+    default: ''
+  openai-api-key:
+    description: 'OpenAI (or OpenAI-compatible) API key. Pass from a secret. Used when no Gemini key is set.'
+    required: false
+    default: ''
+  openai-base-url:
+    description: 'Base URL for an OpenAI-compatible API.'
+    required: false
+    default: ''
+  model:
+    description: 'Model name override (default: gemini-2.0-flash-exp or gpt-4o).'
+    required: false
+    default: ''
+  base:
+    description: 'Base branch to diff against. Defaults to the pull request base branch.'
+    required: false
+    default: ''
+  fail-on-violations:
+    description: 'Fail the job when guard reports status "fail".'
+    required: false
+    default: 'true'
+  comment:
+    description: 'Post or update a PR comment with the findings. Needs pull-requests: write.'
+    required: false
+    default: 'true'
+  github-token:
+    description: 'Token used to post the PR comment.'
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  status:
+    description: 'pass, fail, skipped (no API key), or error (tool error)'
+    value: ${{ steps.guard.outputs.status }}
+  report-path:
+    description: 'Path to the JSON report (empty when skipped)'
+    value: ${{ steps.guard.outputs.report-path }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Check for an API key
+      id: key
+      shell: bash
+      env:
+        GEMINI_KEY: ${{ inputs.gemini-api-key }}
+        OPENAI_KEY: ${{ inputs.openai-api-key }}
+      run: |
+        if [ -n "$GEMINI_KEY" ] || [ -n "$OPENAI_KEY" ]; then
+          echo "present=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "present=false" >> "$GITHUB_OUTPUT"
+          echo "::notice title=Skannr Guard skipped::No provider configured. Set the gemini-api-key or openai-api-key input from a repository secret. Pull requests from forks do not receive secrets."
+          echo "Skannr Guard skipped: no provider configured (no gemini-api-key or openai-api-key)." >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+    - name: Set up Node
+      if: steps.key.outputs.present == 'true'
+      uses: actions/setup-node@v7
+      with:
+        node-version: '22'
+
+    - name: Build skannr
+      if: steps.key.outputs.present == 'true'
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: |
+        npm install --no-audit --no-fund --loglevel=error
+        npm run build
+
+    - name: Run skannr guard
+      id: guard
+      shell: bash
+      env:
+        KEY_PRESENT: ${{ steps.key.outputs.present }}
+        GEMINI_API_KEY: ${{ inputs.gemini-api-key }}
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+        OPENAI_BASE_URL: ${{ inputs.openai-base-url }}
+        SKANNR_GUARD_MODEL: ${{ inputs.model }}
+        INPUT_BASE: ${{ inputs.base }}
+        PR_BASE: ${{ github.base_ref }}
+        FAIL_ON_VIOLATIONS: ${{ inputs.fail-on-violations }}
+        SKANNR_DIR: ${{ github.action_path }}
+      run: |
+        if [ "$KEY_PRESENT" != "true" ]; then
+          echo "status=skipped" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        # Pick the provider explicitly so guard does not probe for local CLIs.
+        if [ -n "$GEMINI_API_KEY" ]; then
+          export SKANNR_GUARD_PROVIDER=gemini
+          unset OPENAI_API_KEY
+        else
+          export SKANNR_GUARD_PROVIDER=openai
+          # Always set the URL so a baseUrl in the PR's .skannr/guard.json
+          # cannot redirect the API key to another host.
+          export OPENAI_BASE_URL="${OPENAI_BASE_URL:-https://api.openai.com/v1}"
+        fi
+        [ -n "$SKANNR_GUARD_MODEL" ] || unset SKANNR_GUARD_MODEL
+
+        BASE="${INPUT_BASE:-$PR_BASE}"
+        if [ -z "$BASE" ]; then
+          echo "::error title=Skannr Guard::No base branch. Run on pull_request events or set the base input."
+          echo "status=error" >> "$GITHUB_OUTPUT"
+          exit 1
+        fi
+        if ! git check-ref-format --branch "$BASE" >/dev/null 2>&1; then
+          echo "::error title=Skannr Guard::Invalid base branch name."
+          echo "status=error" >> "$GITHUB_OUTPUT"
+          exit 1
+        fi
+        if [ "$(git -C "$GITHUB_WORKSPACE" rev-parse --is-shallow-repository)" = "true" ]; then
+          git -C "$GITHUB_WORKSPACE" fetch --no-tags --unshallow origin
+        fi
+        git -C "$GITHUB_WORKSPACE" fetch --no-tags origin "+refs/heads/${BASE}:refs/remotes/origin/${BASE}"
+
+        REPORT="$RUNNER_TEMP/skannr-guard-report.json"
+        set +e
+        node "$SKANNR_DIR/dist/cli.js" guard --root "$GITHUB_WORKSPACE" --base "origin/${BASE}" --json > "$REPORT"
+        CODE=$?
+        set -e
+
+        if [ "$CODE" -eq 2 ] || [ ! -s "$REPORT" ]; then
+          echo "::warning title=Skannr Guard::guard hit a tool error (exit $CODE). See the log above. The job is not failed for tool errors."
+          echo "status=error" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        echo "report-path=$REPORT" >> "$GITHUB_OUTPUT"
+        node "$SKANNR_DIR/dist/action-summary.js" "$REPORT" > "$RUNNER_TEMP/skannr-guard-summary.md"
+        cat "$RUNNER_TEMP/skannr-guard-summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+        if [ "$CODE" -eq 1 ]; then
+          echo "status=fail" >> "$GITHUB_OUTPUT"
+        else
+          echo "status=pass" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Upload report
+      if: steps.guard.outputs.report-path != ''
+      uses: actions/upload-artifact@v7
+      with:
+        name: skannr-guard-report
+        path: ${{ steps.guard.outputs.report-path }}
+        if-no-files-found: ignore
+
+    - name: Comment on pull request
+      if: inputs.comment == 'true' && steps.guard.outputs.report-path != '' && github.event.pull_request.number != ''
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        REPO: ${{ github.repository }}
+        PR: ${{ github.event.pull_request.number }}
+      run: |
+        BODY_FILE="$RUNNER_TEMP/skannr-guard-summary.md"
+        ID=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+          -q '[.[] | select(.body | contains("<!-- skannr-guard -->"))][0].id // empty' 2>/dev/null | head -n1) || ID=""
+        if [ -n "$ID" ]; then
+          gh api -X PATCH "repos/$REPO/issues/comments/$ID" -F "body=@$BODY_FILE" >/dev/null \
+            || echo "::warning title=Skannr Guard::Could not update the PR comment. Grant pull-requests: write."
+        else
+          gh api -X POST "repos/$REPO/issues/$PR/comments" -F "body=@$BODY_FILE" >/dev/null \
+            || echo "::warning title=Skannr Guard::Could not post a PR comment. Grant pull-requests: write."
+        fi
+
+    - name: Enforce result
+      if: steps.guard.outputs.status == 'fail' && inputs.fail-on-violations == 'true'
+      shell: bash
+      run: |
+        echo "::error title=Skannr Guard::Guard found blocking violations. See the job summary."
+        exit 1
