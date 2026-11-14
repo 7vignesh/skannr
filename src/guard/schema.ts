@@ -39,6 +39,8 @@ export const ViolationSchema = z.object({
   fixable: z.boolean(),
   message: z.string().min(1),
   suggested_fix: z.string().optional(),
+  evidence: z.string().optional(),
+  evidence_verified: z.boolean().optional(),
 });
 
 export const ReviewResponseSchema = z.object({
