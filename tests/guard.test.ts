@@ -30,6 +30,8 @@ jest.mock('../src/languages/TreeSitterAdapter', () => ({
 import { RulesFileSchema, ReviewResponseSchema } from '../src/guard/schema';
 import { getFixableViolations, previewFixes, applyFixes } from '../src/guard/fix-applier';
 import { installHook, uninstallHook } from '../src/guard/hook-installer';
+import { buildSymbolDiffs } from '../src/guard/symbol-diff';
+import { execSync } from 'child_process';
 import type { Violation } from '../src/guard/types';
 
 describe('guard schema validation', () => {
@@ -327,5 +329,52 @@ describe('guard hook installer', () => {
     const hookContent = fs.readFileSync(path.join(tempDir, '.git', 'hooks', 'pre-commit'), 'utf-8');
     expect(hookContent).toContain('keep me');
     expect(hookContent).not.toContain('skannr guard');
+  });
+});
+
+describe('buildSymbolDiffs: export marker range (issue #9)', () => {
+  function buildRepo(baseline: string, changed: string): string {
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'skannr-sd-'));
+    const git = (args: string) => execSync(`git ${args}`, { cwd: repo, stdio: 'ignore' });
+    git('init');
+    git('config user.email t@t.local');
+    git('config user.name t');
+    git('config commit.gpgsign false');
+    fs.mkdirSync(path.join(repo, 'src'));
+    fs.writeFileSync(path.join(repo, 'src', 'config.ts'), baseline, 'utf-8');
+    git('add -A');
+    git('commit -m base');
+    fs.writeFileSync(path.join(repo, 'src', 'config.ts'), changed, 'utf-8');
+    git('add -A');
+    return repo;
+  }
+
+  it('attributes a body-only change of a top-of-file exported function to that symbol', () => {
+    // The function is the first symbol (line 1). The synthetic `export` marker
+    // the parser emits also lives at line 1. Before the fix, that collapsed the
+    // function's range to empty and the change matched no symbol.
+    const baseline = [
+      'export function getApiKey(): string {',
+      '  return process.env.API_KEY ?? "";',
+      '}',
+      '',
+    ].join('\n');
+    const changed = [
+      'export function getApiKey(): string {',
+      '  return "sk-live-planted";',
+      '}',
+      '',
+    ].join('\n');
+    const repo = buildRepo(baseline, changed);
+    try {
+      const units = buildSymbolDiffs(repo);
+      const match = units.find((u) => u.file === 'src/config.ts' && u.symbol === 'getApiKey');
+      expect(match).toBeDefined();
+      expect(match!.changeType).toBe('modified');
+      // No synthetic export marker leaks through as its own unit.
+      expect(units.every((u) => u.symbol !== 'export')).toBe(true);
+    } finally {
+      fs.rmSync(repo, { recursive: true, force: true });
+    }
   });
 });

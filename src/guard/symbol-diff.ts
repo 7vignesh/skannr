@@ -86,8 +86,14 @@ function findAffectedSymbols(
 ): Symbol[] {
   if (changedLines.size === 0) return [];
 
+  // Synthetic `export` markers all sit at line 1 and carry no real range.
+  // Including them corrupts the next-symbol end-line estimate (a real symbol
+  // sharing their line gets endLine = 1 - 1 = 0, an empty range), so a body
+  // change to a top-of-file exported symbol would match nothing. Drop them.
+  const real = allSymbols.filter((s) => s.kind !== 'export');
+
   // Build approximate end lines: each symbol extends until the next symbol starts
-  const sorted = [...allSymbols].sort((a, b) => a.line - b.line);
+  const sorted = [...real].sort((a, b) => a.line - b.line);
   const affected: Symbol[] = [];
 
   for (let i = 0; i < sorted.length; i++) {
