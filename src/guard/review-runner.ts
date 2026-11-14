@@ -7,6 +7,7 @@ import { loadRules, loadGuardConfig } from './rules-loader';
 import { buildSymbolDiffs, buildSymbolDiffsFromDiff } from './symbol-diff';
 import { enrichWithCallContext } from './call-context';
 import { runLlmReview } from './provider';
+import { verifyViolations } from './evidence-verifier';
 import type { GuardResult, ReviewResponse, SymbolDiffUnit } from './types';
 
 /** Maximum symbols to include in a single LLM call. */
@@ -79,17 +80,21 @@ export async function runGuardReview(options: RunOptions): Promise<GuardResult> 
     }
   }
 
-  // 6. Determine status
-  const hasHighConfidenceFail = allViolations.some(
+  // 6. Verify each finding's quoted evidence against the file. Drop any whose
+  //    quote is not in the code (hallucinated line, invented snippet).
+  const verified = verifyViolations(root, allViolations);
+
+  // 7. Determine status from verified violations only.
+  const hasHighConfidenceFail = verified.some(
     (v) => v.confidence >= 0.7 && (v.severity === 'high' || v.severity === 'critical'),
   );
 
   const response: ReviewResponse = {
-    violations: allViolations,
+    violations: verified,
     status: hasHighConfidenceFail ? 'fail' : 'pass',
-    summary: allViolations.length === 0
+    summary: verified.length === 0
       ? `All ${units.length} symbol(s) pass review.`
-      : `${allViolations.length} violation(s) found across ${units.length} symbol(s).`,
+      : `${verified.length} violation(s) found across ${units.length} symbol(s).`,
   };
 
   return {
