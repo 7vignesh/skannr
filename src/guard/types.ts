@@ -38,6 +38,10 @@ export interface Violation {
   fixable: boolean;
   message: string;
   suggested_fix?: string;
+  /** Verbatim line(s) from the file that the violation flags. Used to verify the finding. */
+  evidence?: string;
+  /** Set by the evidence verifier when the quote was found in the file. */
+  evidence_verified?: boolean;
 }
 
 /** The structured response contract from the LLM. */
