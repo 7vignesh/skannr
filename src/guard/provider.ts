@@ -27,7 +27,7 @@ function buildSystemPrompt(rules: GuardRule[]): string {
     '',
     'Response format (strict JSON, no text before or after):',
     '{',
-    '  "violations": [{ "rule_id": "...", "file": "...", "symbol": "...", "line_start": N, "line_end": N, "severity": "...", "confidence": 0.0-1.0, "fixable": bool, "message": "...", "suggested_fix": "..." }],',
+    '  "violations": [{ "rule_id": "...", "file": "...", "symbol": "...", "line_start": N, "line_end": N, "severity": "...", "confidence": 0.0-1.0, "fixable": bool, "message": "...", "suggested_fix": "...", "evidence": "..." }],',
     '  "status": "pass" | "fail",',
     '  "summary": "..."',
     '}',
@@ -37,6 +37,7 @@ function buildSystemPrompt(rules: GuardRule[]): string {
     '- The "fixable" field MUST match the rule definition — do not override it.',
     '- "confidence" reflects how certain you are this is a real violation (0.0-1.0).',
     '- "suggested_fix" is required only when fixable=true.',
+    '- "evidence" MUST be the exact line(s) from the changed code that the violation refers to, copied verbatim. Do not paraphrase. A finding with no matching line in the file will be discarded.',
     '- If no violations found, return status "pass" with an empty violations array.',
     '- Return ONLY the JSON object. No markdown, no explanation, no preamble.',
   ].join('\n');
