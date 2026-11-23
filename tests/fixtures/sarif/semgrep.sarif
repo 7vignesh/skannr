@@ -1,0 +1,131 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "results": [
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "requires login"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/a.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 32,
+                  "endLine": 3,
+                  "snippet": {
+                    "text": "  cp.exec(\"ls \" + req.query.dir);"
+                  },
+                  "startColumn": 11,
+                  "startLine": 3
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Detected calls to child_process from a function argument `req`. This could lead to a command injection if the input is user controllable. Try to avoid calls to child_process, and if it is needed ensure user input is correctly sanitized or sandboxed. "
+          },
+          "properties": {},
+          "ruleId": "javascript.lang.security.detect-child-process.detect-child-process"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "requires login"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/a.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 29,
+                  "endLine": 4,
+                  "snippet": {
+                    "text": "  return eval(req.body.code);"
+                  },
+                  "startColumn": 10,
+                  "startLine": 4
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Detected the use of eval(). eval() can be dangerous if used to evaluate dynamic content. If this content can be input from outside the program, this may be a code injection vulnerability. Ensure evaluated content is not definable by external sources."
+          },
+          "properties": {},
+          "ruleId": "javascript.browser.security.eval-detected.eval-detected"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Semgrep OSS",
+          "rules": [
+            {
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "fullDescription": {
+                "text": "Detected the use of eval(). eval() can be dangerous if used to evaluate dynamic content. If this content can be input fr"
+              },
+              "help": {
+                "text": "Detected the use of eval(). eval() can be dangerous if used to evaluate dynamic content. If this content can be input fr"
+              },
+              "helpUri": "https://semgrep.dev/r/javascript.browser.security.eval-detected.eval-detected",
+              "id": "javascript.browser.security.eval-detected.eval-detected",
+              "name": "javascript.browser.security.eval-detected.eval-detected",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code ('Eval Injection')",
+                  "LOW CONFIDENCE",
+                  "OWASP-A03:2021 - Injection",
+                  "OWASP-A05:2025 - Injection",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: javascript.browser.security.eval-detected.eval-detected"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "fullDescription": {
+                "text": "Detected calls to child_process from a function argument `$FUNC`. This could lead to a command injection if the input is"
+              },
+              "help": {
+                "text": "Detected calls to child_process from a function argument `$FUNC`. This could lead to a command injection if the input is"
+              },
+              "helpUri": "https://semgrep.dev/r/javascript.lang.security.detect-child-process.detect-child-process",
+              "id": "javascript.lang.security.detect-child-process.detect-child-process",
+              "name": "javascript.lang.security.detect-child-process.detect-child-process",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')",
+                  "LOW CONFIDENCE",
+                  "OWASP-A01:2017 - Injection",
+                  "OWASP-A03:2021 - Injection",
+                  "OWASP-A05:2025 - Injection",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: javascript.lang.security.detect-child-process.detect-child-process"
+              }
+            }
+          ],
+          "semanticVersion": "1.186.0"
+        }
+      }
+    }
+  ],
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/schemas/sarif-schema-2.1.0.json"
+}

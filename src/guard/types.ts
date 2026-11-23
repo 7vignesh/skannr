@@ -26,6 +26,9 @@ export interface SymbolDiffUnit {
   diffText: string;
 }
 
+/** Where a violation came from: the LLM reviewer or a deterministic scanner. */
+export type ViolationSource = 'llm' | 'gitleaks' | 'semgrep' | 'osv-scanner';
+
 /** A violation found by the review. */
 export interface Violation {
   rule_id: string;
@@ -42,6 +45,14 @@ export interface Violation {
   evidence?: string;
   /** Set by the evidence verifier when the quote was found in the file. */
   evidence_verified?: boolean;
+  /** Who produced the finding. Set by the runner, never taken from LLM output. */
+  source?: ViolationSource;
+}
+
+/** Which deterministic scanners ran, and which were skipped and why. */
+export interface ScannerReport {
+  ran: string[];
+  skipped: Array<{ name: string; reason: string }>;
 }
 
 /** The structured response contract from the LLM. */
@@ -57,6 +68,8 @@ export interface GuardResult {
   rulesUsed: GuardRule[];
   symbolsReviewed: number;
   durationMs: number;
+  /** Present when scanners were attempted for this review. */
+  scanners?: ScannerReport;
 }
 
 /** Guard configuration (provider, model, etc.). */

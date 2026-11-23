@@ -19,6 +19,8 @@ export interface GuardCliOptions {
   base?: string;
   diffOnly?: boolean;
   noCache?: boolean;
+  /** Skip the deterministic scanners (gitleaks, semgrep, osv-scanner). */
+  noScanners?: boolean;
   json?: boolean;
 }
 
@@ -27,11 +29,12 @@ export interface GuardCliOptions {
  * Exit codes: 0 = pass, 1 = fail (violations), 2 = tool error.
  */
 export async function runGuard(options: GuardCliOptions): Promise<{ result: GuardResult; exitCode: number }> {
-  const { root, fix = false, dryRun = false, prMode = false, base, diffOnly = false, noCache = false } = options;
+  const { root, fix = false, dryRun = false, prMode = false, base, diffOnly = false, noCache = false, noScanners = false } = options;
   const absoluteRoot = path.resolve(root);
 
   // Get PR diff if in --pr-mode
   let diffContent: string | undefined;
+  let baseRef: string | undefined;
   if (base !== undefined) {
     if (base === '' || base.startsWith('-')) {
       throw new Error(`Invalid --base ref: "${base}"`);
@@ -42,6 +45,7 @@ export async function runGuard(options: GuardCliOptions): Promise<{ result: Guar
       encoding: 'utf-8',
       maxBuffer: 10 * 1024 * 1024,
     });
+    baseRef = base;
   } else if (prMode) {
     const { execSync } = await import('child_process');
     try {
@@ -50,20 +54,24 @@ export async function runGuard(options: GuardCliOptions): Promise<{ result: Guar
         encoding: 'utf-8',
         maxBuffer: 10 * 1024 * 1024,
       });
+      baseRef = 'origin/main';
     } catch {
       diffContent = execSync('git diff main...HEAD', {
         cwd: absoluteRoot,
         encoding: 'utf-8',
         maxBuffer: 10 * 1024 * 1024,
       });
+      baseRef = 'main';
     }
   }
 
   const result = await runGuardReview({
     root: absoluteRoot,
     diffContent,
+    baseRef,
     diffOnly,
     noCache,
+    noScanners,
   });
 
   // Handle --fix
@@ -97,6 +105,11 @@ export function formatGuardText(result: GuardResult): string {
   lines.push(`  Status: ${response.status.toUpperCase()}`);
   lines.push(`  ${response.summary}`);
   lines.push(`  Reviewed ${result.symbolsReviewed} symbol(s) against ${result.rulesUsed.length} rule(s) in ${result.durationMs}ms`);
+  if (result.scanners) {
+    const { ran, skipped } = result.scanners;
+    lines.push(`  Scanners run: ${ran.length > 0 ? ran.join(', ') : 'none'}`);
+    for (const s of skipped) lines.push(`  Scanner skipped: ${s.name} (${s.reason})`);
+  }
   lines.push('');
 
   if (response.violations.length > 0) {
@@ -108,7 +121,7 @@ export function formatGuardText(result: GuardResult): string {
       const confTag = `(${Math.round(v.confidence * 100)}% confidence)`;
       lines.push(`    ${v.severity.toUpperCase()} ${v.file}:${v.line_start} ${confTag}${fixTag}`);
       lines.push(`      Rule: ${v.rule_id}`);
-      lines.push(`      Symbol: ${v.symbol}`);
+      if (v.symbol) lines.push(`      Symbol: ${v.symbol}`);
       lines.push(`      ${v.message}`);
       if (v.suggested_fix) {
         lines.push(`      Fix: ${v.suggested_fix}`);
@@ -137,6 +150,7 @@ export function formatGuardJson(result: GuardResult): string {
     symbolsReviewed: result.symbolsReviewed,
     rulesUsed: result.rulesUsed.length,
     durationMs: result.durationMs,
+    ...(result.scanners ? { scanners: result.scanners } : {}),
   }, null, 2);
 }
 

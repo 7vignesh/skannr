@@ -56,6 +56,22 @@ skannr guard --json
 
 Auto-detects your coding agent (Claude, Gemini, Kiro, Ollama). No API key needed if you already have one installed. Works out of the box with built-in rules.
 
+### Security scanners
+
+Guard also runs three deterministic scanners on the same change. They are optional: a scanner that is not installed is skipped, shown in the output, and never fails the review.
+
+| Scanner | Finds | Scope |
+|---|---|---|
+| [gitleaks](https://github.com/gitleaks/gitleaks) | hardcoded secrets | the staged diff, or every commit in `base..HEAD` with `--base`/`--pr-mode`, so a secret added and then deleted on the same branch is still reported |
+| [semgrep](https://semgrep.dev) | insecure code patterns (`p/default` rules) | the changed files, only on lines the change added |
+| [osv-scanner](https://github.com/google/osv-scanner) | known vulnerabilities in changed lockfiles | only vulnerabilities the change introduces, not ones already at the base |
+
+Install whichever you want on your `PATH`; skannr finds them by name. semgrep needs Python (`pip install semgrep`) and has no native Windows build, so on Windows run it under WSL. Findings appear in the same list as LLM findings, tagged by rule (`gitleaks:aws-access-token`), and the JSON output includes each violation's `source` and a `scanners` report of what ran and what was skipped.
+
+A secret or a critical vulnerability fails the review on its own, even when the LLM provider is down. Use `skannr guard --no-scanners` to skip them.
+
+Privacy: gitleaks and osv-scanner read your files locally. osv-scanner sends package names and versions to osv.dev. semgrep downloads its rules from semgrep.dev on first use and runs with metrics off. None of them send your source code.
+
 Install as a pre-commit hook:
 
 ```bash
@@ -123,6 +139,7 @@ Outputs: `status` (`pass`, `fail`, `skipped`, or `error`) and `report-path`.
 Behavior to know:
 - No API key: the action skips the review, adds a notice, and passes. Pull requests from forks do not receive secrets, so they are skipped.
 - Tool errors (provider outage, bad key) produce a warning and do not fail the job. Only guard violations fail it.
+- The scanners are not installed on the runner, so the action runs the LLM review only. Add install steps for gitleaks, semgrep, and osv-scanner before the action to enable them.
 - The action sends the PR diff to the provider you configure. Do not use `pull_request_target` with this action: it would run on untrusted fork code with your secrets.
 - `@main` tracks the latest code. Pin to a commit SHA for stable behavior.
 
