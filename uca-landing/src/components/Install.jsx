@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import Reveal from './Reveal'
 
-const tabs = ['CLI Install', 'npx', 'MCP Server']
+const tabs = ['CLI Install', 'npx', 'MCP Server', 'GitHub Action']
 
 const snippets = {
   'CLI Install': `npm install -g skannr
@@ -20,6 +20,10 @@ skannr guard
 skannr guard --fix
 skannr guard install    # pre-commit hook
 
+# Try it on a throwaway repo, or wire up your agents
+skannr demo
+skannr init
+
 # Interactive agent mode
 skannr agent`,
   npx: `# Run without installing
@@ -36,6 +40,25 @@ npx skannr report
 
 # Cache management
 npx skannr cache stats`,
+  'GitHub Action': `# .github/workflows/skannr.yml
+name: Skannr Guard
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: 7vignesh/skannr@main
+        with:
+          gemini-api-key: \${{ secrets.GEMINI_API_KEY }}`,
   'MCP Server': `{
   "mcpServers": {
     "skannr": {
@@ -101,9 +124,20 @@ export default function Install() {
 
         {active === 'MCP Server' && (
           <p className="mt-4 text-sm text-[#888]">
-            Add this to ~/.cursor/mcp.json, ~/.gemini/config.json, or Claude Desktop config.
+            Or run skannr init to write this for the agents it finds in your project. By hand, add it to
+            .cursor/mcp.json, .mcp.json (Claude Code), or your agent's MCP config.
           </p>
         )}
+
+        {active === 'GitHub Action' && (
+          <p className="mt-4 text-sm text-[#888]">
+            Add GEMINI_API_KEY (or OPENAI_API_KEY) as a repository secret. Without a key the action skips the review and passes.
+          </p>
+        )}
+
+        <p className="mt-4 text-sm text-[#888]">
+          init, demo and the action are on main and arrive in the next npm release. The published 0.2.4 does not have them yet.
+        </p>
       </div>
     </section>
   )

@@ -6,6 +6,7 @@ import HowItWorks from './components/HowItWorks'
 import Features from './components/Features'
 import LanguageSupport from './components/LanguageSupport'
 import Install from './components/Install'
+import Privacy from './components/Privacy'
 import CliReference from './components/CliReference'
 import WorksWith from './components/WorksWith'
 import AgentMode from './components/AgentMode'
@@ -39,6 +40,7 @@ export default function App() {
       <CliReference />
       <WorksWith />
       <AgentMode />
+      <Privacy />
       <Footer />
     </div>
   )

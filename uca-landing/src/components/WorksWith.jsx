@@ -8,27 +8,27 @@ const tools = [
   },
   {
     name: 'Gemini CLI',
-    desc: 'MCP via ~/.gemini/config.json + Guard auto-detects gemini CLI',
+    desc: 'MCP via .gemini/settings.json (skannr init writes it) + Guard auto-detects gemini CLI',
     barClass: 'bg-accent',
   },
   {
     name: 'Cursor',
-    desc: 'Add to ~/.cursor/mcp.json for codebase search + guard + risk',
+    desc: 'MCP via .cursor/mcp.json (skannr init writes it) for codebase search + guard + risk',
     barClass: 'bg-green',
   },
   {
     name: 'Kiro',
-    desc: 'Guard auto-detects kiro-cli — reviews use your existing session',
+    desc: 'MCP via .kiro/settings/mcp.json (skannr init writes it) + Guard auto-detects kiro-cli',
     barClass: 'bg-yellow',
   },
   {
     name: 'Ollama',
-    desc: 'Local inference, no API key — Guard uses it automatically if running',
+    desc: 'Local inference, no API key. Guard uses it automatically if it is installed',
     barClass: 'bg-accent',
   },
   {
     name: 'Any MCP Client',
-    desc: 'Standard Model Context Protocol over stdio — works with any tool',
+    desc: 'Standard Model Context Protocol over stdio. VS Code Copilot reads .vscode/mcp.json (skannr init writes it)',
     barClass: 'bg-purple',
   },
 ]

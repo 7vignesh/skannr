@@ -12,12 +12,12 @@ const steps = [
   },
   {
     title: 'Skeletons compress without losing meaning',
-    desc: 'Function bodies stripped. Signatures, types, interfaces, and imports remain. The AI gets the full architectural picture at 3% of the token cost. Citations tell you exactly which files were used.',
+    desc: 'Function bodies stripped. Signatures, types, interfaces, and imports remain. The AI gets the architectural picture at a fraction of the token cost (88% fewer tokens on average in our benchmarks). Each result says why it matched.',
   },
   {
     title: 'Check risk before you push',
     code: 'npx skannr risk',
-    desc: 'Analyzes your uncommitted changes, traverses the dependency graph to find downstream affected files, flags untested code, and gives you a 0-10 risk score. Deterministic, instant, no API call.',
+    desc: 'Analyzes your uncommitted changes, traverses the dependency graph to find downstream affected files, flags untested code, and gives you a 0-10 risk score. Deterministic, no API call.',
   },
   {
     title: 'AI code review on every commit',

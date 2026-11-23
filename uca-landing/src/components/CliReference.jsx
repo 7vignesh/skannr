@@ -1,6 +1,8 @@
 import Reveal from './Reveal'
 
 const commands = [
+  ['skannr demo', 'See a review on a throwaway repo with a planted bug (--sample skips the provider)'],
+  ['skannr init', 'Connect skannr to the coding agents found in this project (--yes, --agent, --global)'],
   ['skannr "<question>"', 'Ask about the codebase (positional argument)'],
   ['skannr risk', 'Check downstream impact and risk of uncommitted changes'],
   ['skannr risk --diff <path>', 'Analyze a specific diff/patch file'],
@@ -9,6 +11,8 @@ const commands = [
   ['skannr guard', 'Review staged changes against team-defined rules'],
   ['skannr guard --fix', 'Auto-fix fixable violations from current run'],
   ['skannr guard --pr-mode', 'Review full PR diff vs base branch'],
+  ['skannr guard --base <ref>', 'Review the diff from a specific base ref'],
+  ['skannr guard --no-scanners', 'Skip gitleaks, semgrep and osv-scanner'],
   ['skannr guard install', 'Install git pre-commit hook'],
   ['skannr report', 'Print repository health summary as JSON'],
   ['skannr agent', 'Interactive exploration mode'],

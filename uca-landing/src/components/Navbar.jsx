@@ -7,6 +7,7 @@ const links = [
   { label: 'Features', href: '#features' },
   { label: 'Install', href: '#install' },
   { label: 'Works with', href: '#works-with' },
+  { label: 'Privacy', href: '#privacy' },
 ]
 
 export default function Navbar() {

@@ -1,0 +1,4 @@
+[
+  { "moduleKey": "packages/typeorm/src", "query": "query builder and SQL generation", "limit": 10 },
+  { "moduleKey": "packages/typeorm/src/driver", "query": "database connection management", "limit": 10 }
+]

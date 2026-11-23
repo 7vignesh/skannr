@@ -1,6 +1,6 @@
 # Skannr
 
-A CLI tool and MCP server that helps developers and AI assistants understand any codebase. Scans files, generates compressed structural skeletons, and ranks results using hybrid retrieval. Reduces token usage by 96.5% vs full file reads.
+A CLI tool and MCP server that helps developers and AI assistants understand any codebase. Scans files, generates compressed structural skeletons, and ranks results using hybrid retrieval. On six queries against NestJS, TypeORM and tRPC, the skeletons it returned used 72% to 97% fewer tokens than the whole module (88% on average). See [Benchmarks](./docs/BENCHMARKS.md) for the method and the limits.
 
 ## Install
 
@@ -13,6 +13,28 @@ Or use without installing:
 ```bash
 npx skannr "how does auth work?"
 ```
+
+## Quick start
+
+```bash
+npx skannr demo     # see a review on a throwaway repo with a planted bug (no setup)
+npx skannr init     # connect skannr to the coding agents it finds in this project
+```
+
+`demo` builds a temporary git repo with a hardcoded secret, runs guard on it, and deletes the repo. If no review provider is available it prints a labelled sample instead. Use `--sample` to skip the provider call.
+
+`init` finds Claude Code, Cursor, Kiro, VS Code Copilot and Gemini CLI by their config folders, lists exactly what it will write, and asks once. It adds the skannr MCP server to each agent's **project-local** config, installs the guard pre-commit hook, and creates `.skannr/rules.json` if there is none. It never touches your home directory unless you pass `--global`.
+
+```bash
+skannr init --yes              # no prompt
+skannr init --agent cursor     # one agent only
+skannr init --global           # write home-level configs instead
+skannr init --no-rules         # do not create .skannr/rules.json
+```
+
+Existing config is merged, not replaced, and running `init` twice changes nothing.
+
+> `init` and `demo` are on `main` but not in the published 0.2.4 package yet. Until the next release, run them from a checkout (`npm install && npm run build && node dist/cli.js init`).
 
 ## Usage
 
@@ -38,7 +60,7 @@ skannr risk -n 3
 skannr risk --diff feature.patch
 ```
 
-Walks the dependency graph, finds affected files, flags untested code, gives you a 0-10 score. No LLM, no API key, runs in under 2 seconds.
+Walks the dependency graph, finds affected files, flags untested code, gives you a 0-10 score. No LLM, no API key. About 1.4 seconds on a 66-file repo; see [Performance](#performance) for large repos.
 
 ### Guard (AI code review)
 
@@ -236,13 +258,23 @@ Override with `SKANNR_GUARD_PROVIDER` env var or `.skannr/guard.json`.
 
 ## Performance
 
+Measured on Windows x64 (i5-1135G7, 16 GB), Node 22, cold cache. Full method and per-scenario numbers in [docs/BENCHMARKS.md](./docs/BENCHMARKS.md).
+
 | Metric | Result |
 |---|---|
-| Token reduction vs full scan | 96.5% |
-| Typical query time | 1-2 seconds |
-| Risk analysis | under 2 seconds (no API call) |
-| Guard review | 5-15 seconds (LLM round-trip) |
-| Package size | 450KB compressed |
+| Token reduction vs the whole module | 87.7% mean, 72.1% to 96.6% (6 queries, 3 repos) |
+| Token reduction vs the same top 10 files unskeletonized | 42.7% mean, -4.3% to 70.7% |
+| Query, 52 to 105 files, cold | 7 to 14 seconds |
+| Query, 294 to 496 files, cold | 64 to 77 seconds |
+| Query, repeated (cache hit) | about 0.1 seconds |
+| Query on this repo (66 files), cold / warm | about 2.0 / 0.6 seconds |
+| `skannr risk`, one file changed, 2,277-file repo | 20 to 24 seconds |
+| `skannr risk`, one file changed, this repo | about 1.4 seconds |
+| Peak memory, one query | about 280 to 290 MB |
+| Guard review | depends on the provider (an LLM round trip) |
+| Package size (0.2.4) | 453 KB packed, 2.8 MB unpacked |
+
+Cold queries on large modules are slow. This is tracked in [#16](https://github.com/7vignesh/skannr/issues/16).
 
 ## Interactive Agent
 
@@ -267,6 +299,21 @@ Requires `GEMINI_API_KEY` for the interactive agent mode.
 ## Architecture
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for design decisions, technology choices, and the reasoning behind each one.
+
+## Privacy
+
+skannr runs on your machine. These commands make **no network connection**: asking a question, `risk`, `report`, `cache`, `init`. I checked this by recording every socket and DNS lookup the CLI makes.
+
+What can leave your machine:
+
+| When | What is sent | To |
+|---|---|---|
+| `skannr guard` | the changed code, with caller and callee names | the provider you chose: your `claude`, `gemini` or `kiro-cli` session, a local `ollama`, or the Gemini or OpenAI API with your key |
+| `skannr agent` | the retrieved skeletons and your questions | the Gemini API, with your key |
+| guard scanners | osv-scanner sends package names and versions; semgrep downloads its rules on first use | osv.dev, semgrep.dev |
+| telemetry, see below | which flags you used, an anonymous id, skannr and Node versions, OS | `skannr-telemetry.vercel.app` |
+
+Telemetry never includes code, questions, or file paths. It only fires for questions asked with `skannr "<question>"`, and only when enabled. **It is enabled automatically 7 days after the first-run banner unless you turn it off.** The banner says so. Run `skannr --telemetry-off` to disable it for good, or `--telemetry-on` to enable it at once. This default is being reviewed in [#17](https://github.com/7vignesh/skannr/issues/17).
 
 ## License
 
