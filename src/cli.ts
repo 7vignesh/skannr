@@ -558,6 +558,7 @@ const guardCommand = program
   .option('--base <ref>', 'base ref for the PR diff (implies --pr-mode, default: origin/main)')
   .option('--diff-only', 'skip cross-file context (faster, cheaper)')
   .option('--no-cache', 'ignore symbol cache')
+  .option('--no-scanners', 'skip gitleaks, semgrep and osv-scanner')
   .option('--json', 'output as JSON')
   .action(async (cmdOpts: {
     root: string;
@@ -567,6 +568,7 @@ const guardCommand = program
     base?: string;
     diffOnly?: boolean;
     noCache?: boolean;
+    scanners?: boolean;
     json?: boolean;
   }) => {
     try {
@@ -579,6 +581,7 @@ const guardCommand = program
         base: cmdOpts.base,
         diffOnly: cmdOpts.diffOnly,
         noCache: cmdOpts.noCache,
+        noScanners: cmdOpts.scanners === false,
         json: cmdOpts.json,
       });
 
