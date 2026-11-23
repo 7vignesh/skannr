@@ -7,7 +7,6 @@ import {
   Plug,
   RefreshCw,
   Shield,
-  ShieldCheck,
   Zap,
 } from 'lucide-react'
 import Reveal from './Reveal'
@@ -20,13 +19,13 @@ const features = [
   },
   {
     icon: Zap,
-    title: '96.5% Token Reduction',
-    body: 'Skeleton generation strips bodies while preserving signatures and types. Feed entire codebases to your AI without hitting limits.',
+    title: 'Fewer Tokens',
+    body: 'Skeletons keep signatures and types and drop function bodies. On six measured queries the result used 72% to 97% fewer tokens than the whole module, 88% on average.',
   },
   {
     icon: AlertTriangle,
     title: 'Risk Analysis',
-    body: 'Run "skannr risk" before pushing. Traverses the dependency graph, finds downstream affected files, flags untested code, and scores risk 0-10. Deterministic and instant.',
+    body: 'Run "skannr risk" before pushing. Traverses the dependency graph, finds downstream affected files, flags untested code, and scores risk 0-10. Deterministic, with no API call.',
   },
   {
     icon: Shield,
@@ -45,8 +44,8 @@ const features = [
   },
   {
     icon: FileSearch,
-    title: 'Grounded Citations',
-    body: 'Every response includes an Evidence section listing the exact files and symbols used. Verify AI answers by tracing to source.',
+    title: 'Ranked With Reasons',
+    body: 'Every ranked file says why it matched: which query words it contains and whether its module name matches. You can see why a file made the list.',
   },
   {
     icon: Plug,
@@ -57,11 +56,6 @@ const features = [
     icon: RefreshCw,
     title: 'Watch Mode',
     body: 'Use --watch on large repos you touch daily. Skannr debounces file changes and re-analyzes with a fresh run (cache bypassed per pass) so output stays current.',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Opt-in Telemetry',
-    body: 'Anonymous, flag-only usage stats if you enable them. No code, questions, or paths leave your machine. Turn on or off anytime with --telemetry-on / --telemetry-off.',
   },
 ]
 

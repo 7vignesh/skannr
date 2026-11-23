@@ -108,6 +108,44 @@ export const BENCHMARK_SCENARIOS: BenchmarkScenario[] = [
 ];
 
 /**
+ * Read scenarios from a JSON file: `[{ "moduleKey": "src", "query": "...", "limit": 10 }]`.
+ * `moduleKey` is a directory under the repo root; `limit` defaults to 10.
+ */
+export function loadScenarios(file: string): BenchmarkScenario[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(fs.readFileSync(file, 'utf-8'));
+  } catch (err) {
+    throw new Error(`Cannot read scenarios file ${file}: ${err instanceof Error ? err.message : err}`);
+  }
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    throw new Error(`Scenarios file ${file} must be a non-empty JSON array`);
+  }
+  return parsed.map((raw, i) => {
+    const s = raw as { moduleKey?: unknown; query?: unknown; limit?: unknown };
+    if (typeof s.moduleKey !== 'string' || s.moduleKey.trim() === '') {
+      throw new Error(`Scenario ${i + 1} in ${file}: "moduleKey" must be a non-empty string`);
+    }
+    if (typeof s.query !== 'string' || s.query.trim() === '') {
+      throw new Error(`Scenario ${i + 1} in ${file}: "query" must be a non-empty string`);
+    }
+    if (s.limit !== undefined && (!Number.isInteger(s.limit) || (s.limit as number) < 1)) {
+      throw new Error(`Scenario ${i + 1} in ${file}: "limit" must be a positive integer`);
+    }
+    return { moduleKey: s.moduleKey, query: s.query, limit: (s.limit as number | undefined) ?? 10 };
+  });
+}
+
+/** Value of `--scenarios <file>` in `argv`, if present. */
+function scenariosFileFromArgs(argv: string[]): string | undefined {
+  const at = argv.indexOf('--scenarios');
+  if (at === -1) return undefined;
+  const file = argv[at + 1];
+  if (!file || file.startsWith('--')) throw new Error('--scenarios needs a file path');
+  return file;
+}
+
+/**
  * Quickly sum tokens across all .ts/.tsx files in a directory.
  * Uses a capped sample to stay fast, then extrapolates.
  */
@@ -322,6 +360,8 @@ function saveResults(results: BenchmarkResult[], outputPath: string): void {
  */
 async function runBenchmarks(): Promise<void> {
   const repoRoot = process.cwd();
+  const scenariosFile = scenariosFileFromArgs(process.argv.slice(2));
+  const scenarios = scenariosFile ? loadScenarios(scenariosFile) : BENCHMARK_SCENARIOS;
 
   // Verify repo exists
   if (!fs.existsSync(repoRoot)) {
@@ -340,8 +380,8 @@ async function runBenchmarks(): Promise<void> {
   const results: BenchmarkResult[] = [];
 
   let i = 1;
-  for (const scenario of BENCHMARK_SCENARIOS) {
-    console.log(`▶  [${i}/${BENCHMARK_SCENARIOS.length}] ${scenario.query} (${scenario.moduleKey})`);
+  for (const scenario of scenarios) {
+    console.log(`▶  [${i}/${scenarios.length}] ${scenario.query} (${scenario.moduleKey})`);
     results.push(await benchmarkProject(
       repoRoot,
       scenario.moduleKey,

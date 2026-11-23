@@ -4,18 +4,18 @@ import Reveal from './Reveal'
 const comparison = [
   {
     label: 'Without Skannr',
-    scenario: 'AI reads full files to answer your question',
-    files: '10 files × 300 lines',
-    tokens: '~15,000 tokens',
-    cost: 'Full context burned every time',
+    scenario: 'Put every file in the directory into the prompt',
+    files: '52 files (tRPC packages/client)',
+    tokens: '~21,300 tokens',
+    cost: 'Everything, relevant or not',
     highlight: false,
   },
   {
     label: 'With Skannr',
-    scenario: 'Skannr returns ranked skeletons (signatures + types only)',
-    files: '8 relevant files, compressed',
-    tokens: '~500 tokens',
-    cost: '96.5% less context used',
+    scenario: 'Skannr returns the 10 best matches for "http link batching" as skeletons (signatures and types, no function bodies)',
+    files: '10 ranked files, compressed',
+    tokens: '~2,300 tokens',
+    cost: '89% fewer tokens',
     highlight: true,
   },
 ]
@@ -23,15 +23,15 @@ const comparison = [
 const flows = [
   {
     icon: Flame,
-    title: 'Direct CLI — zero tokens',
+    title: 'Direct CLI: no model call',
     command: 'skannr "how does auth work?"',
-    desc: 'Answers locally. No AI API call, no tokens burned. Free.',
+    desc: 'Runs on your machine and makes no network connection. No AI API call, no tokens spent.',
   },
   {
     icon: Zap,
-    title: 'MCP — 96% fewer tokens',
+    title: 'MCP: skeletons, not whole files',
     command: 'AI calls scan_codebase via MCP',
-    desc: 'Instead of reading 10+ full files, your assistant gets compressed skeletons in one tool call. Same answer, 30x cheaper.',
+    desc: 'Instead of reading 10+ full files, your assistant gets ranked skeletons in one tool call.',
   },
 ]
 
@@ -91,7 +91,7 @@ export default function TokenSavings() {
           <div className="flex justify-center my-8">
             <div className="flex items-center gap-3 rounded-full border border-border bg-card px-5 py-2">
               <ArrowDown size={16} className="text-green" />
-              <span className="text-sm font-mono text-green">96.5% reduction</span>
+              <span className="text-sm font-mono text-green">89% fewer tokens in this example</span>
               <ArrowDown size={16} className="text-green" />
             </div>
           </div>
@@ -116,8 +116,20 @@ export default function TokenSavings() {
         {/* Clarification */}
         <Reveal delay={200}>
           <p className="mt-10 text-center text-sm text-[#888] max-w-xl mx-auto">
-            Skeletons show structure — signatures, types, imports. If you need a function body,
+            Skeletons show structure: signatures, types, imports. If you need a function body,
             use the symbol mapping to retrieve just that one implementation on demand.
+          </p>
+          <p className="mt-4 text-center text-sm text-[#888] max-w-xl mx-auto">
+            Token counts are approximate (skannr's own counter). Across six queries on NestJS,
+            TypeORM and tRPC the reduction ranged from 72% to 97%, 88% on average, and in one
+            case skeletons were larger than the source.{' '}
+            <a
+              href="https://github.com/7vignesh/skannr/blob/main/docs/BENCHMARKS.md"
+              className="text-accent hover:underline"
+            >
+              Method and every number
+            </a>
+            .
           </p>
         </Reveal>
       </div>

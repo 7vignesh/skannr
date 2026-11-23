@@ -2,13 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTypewriter } from '../hooks/useTypewriter'
 
 function renderLine(line, showCursor) {
-  const baseClass = line.startsWith('✓')
-    ? 'text-green'
-    : line.startsWith('───') || line.startsWith('────────────────')
-      ? 'text-[#333]'
-      : line.startsWith('Evidence:')
-        ? 'text-accent'
-        : 'text-[#e8e8e8]'
+  const baseClass = line.trim().startsWith('↳') ? 'text-accent' : 'text-[#e8e8e8]'
 
   const parts = line.split('{ ... }')
 
@@ -28,26 +22,29 @@ function renderLine(line, showCursor) {
 export default function Hero() {
   const [start, setStart] = useState(false)
 
+  // Real output of: skannr "retry link options" --modules packages/client --limit 3
+  // run on trpc/trpc at 8405090, trimmed (second ranked file, first 18 lines of its skeleton).
   const lines = useMemo(
     () => [
-      '$ skannr "how does authentication work?"',
+      '$ skannr "retry link options" --modules packages/client --limit 3',
       '',
-      '✓ Detected language: TypeScript',
-      '✓ Discovered modules: auth, api, middleware, db',
-      '✓ Scanning 1,847 files...',
+      '  ...',
+      '  packages/client/src/links/retryLink.ts  [0.617]',
+      '    ↳ keyword match: retry, link, options · module name matches query',
       '',
-      '  Ranked 8 relevant files in 1.1s',
-      '  Token reduction: 96.5% vs full scan',
+      '    /* Skeleton of retryLink.ts */',
       '',
-      '─── src/auth/AuthManager.ts ──────────────────',
-      '  export class AuthManager {',
-      '    constructor(private db: Database) {}',
-      '    async validateToken(token: string): Promise<User | null> { ... }',
-      '    async createSession(userId: string): Promise<Session> { ... }',
-      '  }',
-      '──────────────────────────────────────────────',
-      '',
-      'Evidence: AuthManager.ts · SessionStore.ts · middleware/auth.ts',
+      '    // packages/client/src/links/retryLink.ts:10-19',
+      '    interface RetryLinkOptions<TInferrable extends InferrableClientTypes> {',
+      '      /**',
+      '       * The retry function',
+      '       */',
+      '      retry: (opts: RetryFnOptions<TInferrable>) => boolean;',
+      '      /**',
+      '       * The delay between retries in ms (defaults to 0)',
+      '       */',
+      '      retryDelayMs?: (attempt: number) => number;',
+      '    }',
     ],
     []
   )
@@ -77,13 +74,12 @@ export default function Hero() {
       <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-center leading-tight opacity-0 motion-safe:animate-fade-in-up motion-reduce:opacity-100 motion-reduce:translate-y-0 [animation-delay:80ms]">
         Any repo. Any question.
         <br />
-        <span className="text-accent">Instantly understood.</span>
+        <span className="text-accent">Without reading every file.</span>
       </h1>
 
       <p className="mt-6 max-w-xl text-center text-lg text-[#888] opacity-0 motion-safe:animate-fade-in-up motion-reduce:opacity-100 motion-reduce:translate-y-0 [animation-delay:180ms]">
-        Skannr helps AI assistants understand entire codebases using structural
-        skeletons and hybrid ranking. Human, Markdown, or JSON output; optional watch mode for
-        live re-analysis; MCP for IDE tools—all without shipping your source off the CLI.
+        Skannr gives AI assistants a ranked, compressed view of a codebase, and reviews your changes
+        before you push. Everyday commands run on your machine with no network connection.
       </p>
 
       <div className="flex flex-col sm:flex-row gap-4 mt-10 opacity-0 motion-safe:animate-fade-in-up motion-reduce:opacity-100 motion-reduce:translate-y-0 [animation-delay:280ms]">
@@ -94,7 +90,7 @@ export default function Hero() {
           Get started
         </a>
         <a
-          href="https://github.com/7vignesh/code-analyzer"
+          href="https://github.com/7vignesh/skannr"
           className="border border-white/20 px-6 py-3 rounded-lg transition-all duration-300 hover:border-accent/60 hover:text-accent hover:-translate-y-0.5 active:translate-y-0"
         >
           View on GitHub
@@ -120,6 +116,9 @@ export default function Hero() {
           })}
         </pre>
       </div>
+      <p className="mt-4 text-xs text-[#666]">
+        Real output on trpc/trpc, trimmed.
+      </p>
     </section>
   )
 }

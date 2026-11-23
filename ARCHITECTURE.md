@@ -2,7 +2,7 @@ Skannr: Architecture and Design Decisions
 
 Overview
 
-Skannr is a CLI tool, MCP server, and library that helps developers and AI assistants understand codebases without reading every file. It scans a project, generates compressed structural skeletons of the most relevant files, and returns them ranked by relevance to a natural language question. The output is 96.5% smaller than raw source while retaining all architectural information.
+Skannr is a CLI tool, MCP server, and library that helps developers and AI assistants understand codebases without reading every file. It scans a project, generates compressed structural skeletons of the most relevant files, and returns them ranked by relevance to a natural language question. On six benchmark queries the returned skeletons used 72% to 97% fewer tokens than the whole module (see docs/BENCHMARKS.md).
 
 The tool also includes risk analysis (quantifying the downstream impact of a code change) and guard (AI code review against team rules with auto-fix capability).
 
@@ -76,7 +76,7 @@ Decision: Ship tree-sitter grammars as WASM files instead of native bindings.
 
 Why: Native tree-sitter requires a C++ compiler (Visual Studio on Windows, Xcode on Mac). Most JavaScript developers do not have these installed. The npm install would fail for the majority of users.
 
-WASM grammars are platform-independent. They run everywhere Node.js runs. The tradeoff is slightly slower parsing (roughly 2x), but since we only parse files the ranker already selected as relevant (typically 5-10 files), the total time remains under 2 seconds.
+WASM grammars are platform-independent. They run everywhere Node.js runs. The tradeoff is slightly slower parsing (roughly 2x), but since we only parse files the ranker already selected as relevant (typically 5-10 files), end-to-end times are in docs/BENCHMARKS.md.
 
 The WASM files add 2MB to the package. This is acceptable because it eliminates a class of installation failures entirely.
 
@@ -102,7 +102,7 @@ The formula:
 
 Why:
   Deterministic: same diff always produces same score
-  Fast: runs in under 2 seconds with zero API calls
+  No API call: runs locally (about 1.4 seconds on a 66-file repo, about 20 seconds on a 2,277-file repo)
   CI-gateable: you can block merges on a number, not on an LLM's mood
   Transparent: the formula is visible, the weights are named constants, the inputs are shown
   Reproducible: another developer running the same command gets the same result
@@ -221,9 +221,9 @@ Coverage areas:
 
 Performance Characteristics
 
-Typical query: 1-2 seconds end to end on a 2000-file TypeScript repo
-Risk analysis: under 2 seconds (no API call)
-Guard review: 5-15 seconds (LLM round-trip)
-Package size: 450KB compressed, 2.8MB unpacked
-Memory: under 100MB for typical repos
+Query, cold cache: 7 to 14 seconds for 52 to 105 files, 64 to 77 seconds for 294 to 496 files; about 0.1 seconds on a repeat (docs/BENCHMARKS.md)
+Risk analysis: about 1.4 seconds on a 66-file repo, 20 to 24 seconds on a 2,277-file repo (no API call)
+Guard review: depends on the provider (an LLM round trip)
+Package size: 453KB compressed, 2.8MB unpacked (0.2.4)
+Memory: peak about 280 to 290MB for one query
 No background processes: runs, outputs, exits

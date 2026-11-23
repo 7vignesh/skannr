@@ -1,0 +1,4 @@
+[
+  { "moduleKey": "packages/core", "query": "dependency injection and module resolution", "limit": 10 },
+  { "moduleKey": "packages/common", "query": "exception handling and http errors", "limit": 10 }
+]
