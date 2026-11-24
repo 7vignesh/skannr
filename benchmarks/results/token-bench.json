@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "environment": {
+    "generatedAt": "2026-11-24T22:40:20.642Z",
+    "skannrCommit": "c5a0edb8eabfbd99b79840d93ec03b5732ed39b7",
+    "skannrSourceModified": false,
+    "node": "v22.21.1",
+    "platform": "win32 x64",
+    "cpu": "11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz",
+    "cpuThreads": 8,
+    "memoryGB": 16,
+    "tokenizer": {
+      "package": "gpt-tokenizer",
+      "version": "4.1.2",
+      "encoding": "o200k_base"
+    },
+    "assumedUsdPer1MInputTokens": 2.5,
+    "skeletonCall": "buildSkeletonForFile(file, targetRoot)",
+    "lineEndings": "CRLF normalized to LF before counting, for raw and skeleton alike"
+  },
+  "results": [
+    {
+      "label": "skannr `src/guard` (small)",
+      "path": "src/guard",
+      "files": 18,
+      "lines": 2217,
+      "rawChars": 72275,
+      "rawTokens": 18375,
+      "rawSha256": "79c474a9e33972ec",
+      "skeletonChars": 23737,
+      "skeletonTokens": 5950,
+      "reductionPct": 67.61904761904762,
+      "costSavedUsd": 0.0310625,
+      "latency": {
+        "warmupRuns": 1,
+        "timedRuns": 5,
+        "runsMs": [
+          2014.6147999999998,
+          2038.6602000000003,
+          1987.9004999999997,
+          2022.2386999999999,
+          1989.9806000000008
+        ],
+        "medianMs": 2014.6147999999998,
+        "medianPerFileMs": 111.92304444444443
+      },
+      "parseFailures": 0,
+      "skeletonStable": true
+    },
+    {
+      "label": "skannr `src` (medium)",
+      "path": "src",
+      "files": 48,
+      "lines": 9144,
+      "rawChars": 284265,
+      "rawTokens": 69284,
+      "rawSha256": "3d5e9e01a291d210",
+      "skeletonChars": 82572,
+      "skeletonTokens": 20346,
+      "reductionPct": 70.63391259165175,
+      "costSavedUsd": 0.12234500000000001,
+      "latency": {
+        "warmupRuns": 1,
+        "timedRuns": 5,
+        "runsMs": [
+          5546.862400000002,
+          5601.2664,
+          5520.8874,
+          5605.463099999994,
+          5715.113900000004
+        ],
+        "medianMs": 5601.2664,
+        "medianPerFileMs": 116.69305000000001
+      },
+      "parseFailures": 0,
+      "skeletonStable": true
+    },
+    {
+      "label": "trpc/trpc `packages/server/src` @8405090 (large)",
+      "path": "benchmarks/.fixtures/trpc/packages/server/src",
+      "files": 110,
+      "lines": 18679,
+      "rawChars": 526924,
+      "rawTokens": 127823,
+      "rawSha256": "fb7fe482553fb130",
+      "skeletonChars": 205008,
+      "skeletonTokens": 50879,
+      "reductionPct": 60.195739420917995,
+      "costSavedUsd": 0.19236,
+      "latency": {
+        "warmupRuns": 1,
+        "timedRuns": 5,
+        "runsMs": [
+          9987.561599999994,
+          10320.9326,
+          10161.386700000003,
+          10534.678800000009,
+          10220.843999999997
+        ],
+        "medianMs": 10220.843999999997,
+        "medianPerFileMs": 92.91676363636361
+      },
+      "parseFailures": 0,
+      "skeletonStable": true
+    }
+  ]
+}

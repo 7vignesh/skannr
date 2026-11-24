@@ -36,6 +36,39 @@ Existing config is merged, not replaced, and running `init` twice changes nothin
 
 > `init` and `demo` are on `main` but not in the published 0.2.4 package yet. Until the next release, run them from a checkout (`npm install && npm run build && node dist/cli.js init`).
 
+## Benchmarks
+
+`npm run bench:tokens` measures what skannr's skeletonizer does to whole directories of TypeScript. For each target it lists the `.ts` and `.tsx` files once (skipping `node_modules`, `dist`, `.git`, `.next` and `*.d.ts`), counts the tokens of the raw source and of the skeleton skannr builds for the same files with the `o200k_base` tokenizer, and times building every skeleton (one warmup pass, then the median of five timed passes).
+
+| Target | Files | Lines | Raw tokens | Skeleton tokens | Token reduction | Input cost saved per query* | Median skeleton time (ms) | Per file (ms) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| skannr `src/guard` (small) | 18 | 2,217 | 18,375 | 5,950 | 67.6% | $0.0311 | 2,015 | 112 |
+| skannr `src` (medium) | 48 | 9,144 | 69,284 | 20,346 | 70.6% | $0.1223 | 5,601 | 117 |
+| trpc/trpc `packages/server/src` @8405090 (large) | 110 | 18,679 | 127,823 | 50,879 | 60.2% | $0.1924 | 10,221 | 93 |
+
+\* Assumed reference rate of $2.50 per 1M input tokens, applied to the measured token counts. It is not a measured price.
+
+Tokens: o200k_base (gpt-tokenizer). Time: median of the timed runs for building every skeleton in the target, including reading the files.
+
+Measured at skannr commit `c5a0edb` on Windows x64, 11th Gen Intel Core i5-1135G7 @ 2.40GHz (8 threads), 16 GB RAM, Node v22.21.1, `gpt-tokenizer` 4.1.2. The large target is tRPC at commit `8405090`, cloned by the script into `benchmarks/.fixtures/`. Every timed run is in [`benchmarks/results/token-bench.json`](./benchmarks/results/token-bench.json). To reproduce, run `npm install && npm run bench:tokens` (the first run clones tRPC); `--targets dirA,dirB` measures your own directories.
+
+How to read it:
+
+- **Token counts are exact for `o200k_base`** and were identical in all three runs. Other models tokenize differently.
+- **Times are not stable on this machine.** I ran the same code three times. Median skeleton time for skannr `src/guard` (small): 2,036, 2,290, 2,015 ms. For skannr `src` (medium): 18,346, 16,571, 5,601 ms. For trpc/trpc `packages/server/src` @8405090 (large): 32,699, 9,848, 10,221 ms. The table above is the third and last run, not a selection; it was the fastest of the three for two of the three targets. The first run called the script with `npx tsx`, the others with `npm run bench:tokens`. When I checked after the second run the laptop was on battery (34%) with several other programs open, and I did not control for that, so treat the times as rough.
+- **The dollar column is an assumption applied to measured tokens.** It is what the token difference would cost at the stated reference rate if you sent the whole directory raw instead of as skeletons. No model was called.
+- **This is a different measurement from [Performance](#performance).** The table compresses every file in a directory and does no ranking. The `skannr benchmark` command (see [docs/BENCHMARKS.md](./docs/BENCHMARKS.md)) asks a question and returns the 10 best-matching files as skeletons, so its reduction against the whole module also includes the effect of leaving files out. Neither replaces the other.
+- **Only TypeScript was measured**, on three directories, on one machine.
+
+Whether a model answers as well from skeletons as from the full source is not measured here. `npm run bench:eval` asks a model eight questions about this repository once with the raw source and once with skeletons, and scores the answers. It needs `OPENROUTER_API_KEY` or `OPENAI_API_KEY` and **has not been run**, so there are no accuracy results and none of the figures above say anything about answer quality. `npm run bench:eval -- --dry-run` validates the questions and builds the prompts without calling a model.
+
+When raw files are the better choice:
+
+- You need to know what a function does, not what it is called. Skeletons replace function and method bodies, and most variable initializers, with a placeholder, so logic, error handling and exact constants are gone.
+- You need exact types. In this repository's own skeletons some parameters come out as `any` where the source has a named type (`analyzeProject`'s `options` is one).
+- The files are small. Each skeleton adds a header and a comment with source line numbers per declaration, so little is saved, and in one scenario of the ranking benchmark the skeletons were larger than the raw files (see [docs/BENCHMARKS.md](./docs/BENCHMARKS.md)).
+- Skeleton building is not free: the times above are seconds to tens of seconds for the directories measured. Repeated queries are served from a cache (see [Performance](#performance)).
+
 ## Usage
 
 ### Ask about any codebase
@@ -274,7 +307,7 @@ Measured on Windows x64 (i5-1135G7, 16 GB), Node 22, cold cache. Full method and
 | Guard review | depends on the provider (an LLM round trip) |
 | Package size (0.2.4) | 453 KB packed, 2.8 MB unpacked |
 
-Cold queries on large modules are slow. This is tracked in [#16](https://github.com/7vignesh/skannr/issues/16).
+Cold queries on large modules are slow. This is tracked in [#16](https://github.com/7vignesh/skannr/issues/16). Timings on this machine varied by several times between identical runs (see [Benchmarks](#benchmarks)), so read the times in this table as rough. This table measures ranked queries; [Benchmarks](#benchmarks) measures skeleton building on whole directories.
 
 ## Interactive Agent
 
