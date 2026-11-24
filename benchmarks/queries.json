@@ -1,0 +1,129 @@
+[
+  {
+    "id": "entry-skeleton-call",
+    "category": "entry-point-trace",
+    "question": "In analyzeProject, each ranked file is turned into a skeleton. When generateMapping is false, which function does analyzeProject call to do this, and in which file is that function defined?",
+    "requires": {
+      "files": ["src/index.ts", "src/skeletonizer.ts"],
+      "symbols": ["analyzeProject", "buildSkeletonForFile"],
+      "terms": []
+    },
+    "evidence": [
+      { "file": "src/index.ts", "quote": "if (generateMapping && adapter.name === 'typescript') {" },
+      { "file": "src/index.ts", "quote": "const sk = buildSkeletonForFile(rankedFile.path, absoluteRoot);" },
+      { "file": "src/skeletonizer.ts", "quote": "export function buildSkeletonForFile(" }
+    ],
+    "groundTruth": "analyzeProject in src/index.ts calls buildSkeletonForFile, which is defined in src/skeletonizer.ts. Only when generateMapping is true and the adapter is the typescript one does it call buildSkeletonWithMapping instead."
+  },
+  {
+    "id": "entry-guard-command",
+    "category": "entry-point-trace",
+    "question": "When a user runs `skannr guard`, which function does the CLI call to run the review and get the exit code, and which function does that function call to run the review pipeline itself?",
+    "requires": {
+      "files": ["src/cli.ts", "src/guard/index.ts", "src/guard/review-runner.ts"],
+      "symbols": ["runGuard", "runGuardReview"],
+      "terms": []
+    },
+    "evidence": [
+      { "file": "src/cli.ts", "quote": "const { runGuard, formatGuardText, formatGuardJson } = await import('./guard/index');" },
+      { "file": "src/guard/index.ts", "quote": "export async function runGuard(" },
+      { "file": "src/guard/index.ts", "quote": "const result = await runGuardReview({" },
+      { "file": "src/guard/review-runner.ts", "quote": "export async function runGuardReview(" }
+    ],
+    "groundTruth": "The guard subcommand in src/cli.ts imports and calls runGuard from src/guard/index.ts. runGuard calls runGuardReview from src/guard/review-runner.ts."
+  },
+  {
+    "id": "interface-language-adapter",
+    "category": "exported-interface",
+    "question": "Which members must a class provide to satisfy the exported LanguageAdapter interface?",
+    "requires": {
+      "files": ["src/languages/LanguageAdapter.ts"],
+      "symbols": ["LanguageAdapter", "extensions", "canHandle", "generateSkeleton", "extractSymbols", "extractImports"],
+      "terms": []
+    },
+    "evidence": [
+      { "file": "src/languages/LanguageAdapter.ts", "quote": "export interface LanguageAdapter" },
+      { "file": "src/languages/LanguageAdapter.ts", "quote": "extensions: string[];" },
+      { "file": "src/languages/LanguageAdapter.ts", "quote": "canHandle(filePath: string): boolean;" },
+      { "file": "src/languages/LanguageAdapter.ts", "quote": "generateSkeleton(content: string, filePath: string, rootDir?: string): SkeletonResult;" },
+      { "file": "src/languages/LanguageAdapter.ts", "quote": "extractSymbols(content: string): Symbol[];" },
+      { "file": "src/languages/LanguageAdapter.ts", "quote": "extractImports(content: string): string[];" }
+    ],
+    "groundTruth": "A name string, an extensions string array, and the methods canHandle(filePath), generateSkeleton(content, filePath, rootDir?), extractSymbols(content) and extractImports(content)."
+  },
+  {
+    "id": "strip-function-body",
+    "category": "stripping-rule",
+    "question": "In the TypeScript adapter, which method generates the skeleton text for a top-level function, and what placeholder does it put where the function body was?",
+    "requires": {
+      "files": ["src/languages/TypeScriptAdapter.ts"],
+      "symbols": ["processFunction"],
+      "terms": ["/* trimmed */"]
+    },
+    "evidence": [
+      { "file": "src/languages/TypeScriptAdapter.ts", "quote": "private processFunction(" },
+      { "file": "src/languages/TypeScriptAdapter.ts", "quote": "lines.push('  /* trimmed */');" }
+    ],
+    "groundTruth": "TypeScriptAdapter.processFunction writes the signature and puts the comment /* trimmed */ between the braces in place of the body."
+  },
+  {
+    "id": "strip-variable-initializer",
+    "category": "stripping-rule",
+    "question": "When the TypeScript adapter writes a variable declaration into a skeleton, under what conditions does it keep the initializer text instead of replacing it with a placeholder?",
+    "requires": {
+      "files": ["src/languages/TypeScriptAdapter.ts"],
+      "symbols": ["processVariableStatement"],
+      "terms": ["50", "=>"]
+    },
+    "evidence": [
+      { "file": "src/languages/TypeScriptAdapter.ts", "quote": "private processVariableStatement(" },
+      { "file": "src/languages/TypeScriptAdapter.ts", "quote": "if (initText.length < 50 && !initText.includes('{') && !initText.includes('=>')) {" }
+    ],
+    "groundTruth": "processVariableStatement keeps the initializer only if its text is shorter than 50 characters and contains neither '{' nor '=>'. Otherwise it writes = /* trimmed */."
+  },
+  {
+    "id": "edge-parse-failure",
+    "category": "edge-case",
+    "question": "What does buildSkeletonForFile do when reading or parsing a file throws an error?",
+    "requires": {
+      "files": ["src/skeletonizer.ts"],
+      "symbols": ["buildSkeletonForFile"],
+      "terms": ["Failed to parse"]
+    },
+    "evidence": [
+      { "file": "src/skeletonizer.ts", "quote": "} catch (error) {" },
+      { "file": "src/skeletonizer.ts", "quote": "/* Failed to parse file:" }
+    ],
+    "groundTruth": "It catches the error and returns a skeleton whose text is the comment /* Failed to parse file: <message> */. It does not throw."
+  },
+  {
+    "id": "edge-unknown-extension",
+    "category": "edge-case",
+    "question": "Which adapter does getAdapter return for a file whose extension is not handled by any of the registered adapters?",
+    "requires": {
+      "files": ["src/languages/registry.ts"],
+      "symbols": ["getAdapter", "GenericAdapter"],
+      "terms": []
+    },
+    "evidence": [
+      { "file": "src/languages/registry.ts", "quote": "const generic = new GenericAdapter();" },
+      { "file": "src/languages/registry.ts", "quote": "return adapters.find((a) => a.extensions.includes(ext)) ?? generic;" }
+    ],
+    "groundTruth": "It returns the GenericAdapter instance (the module-level constant generic) when no registered adapter lists the extension."
+  },
+  {
+    "id": "edge-blocking-finding",
+    "category": "edge-case",
+    "question": "What makes a guard finding blocking, so that it can turn the review status into fail?",
+    "requires": {
+      "files": ["src/guard/review-runner.ts"],
+      "symbols": ["isBlocking"],
+      "terms": ["0.7", "high", "critical"]
+    },
+    "evidence": [
+      { "file": "src/guard/review-runner.ts", "quote": "function isBlocking(v: Violation): boolean {" },
+      { "file": "src/guard/review-runner.ts", "quote": "return v.confidence >= 0.7 && (v.severity === 'high' || v.severity === 'critical');" }
+    ],
+    "groundTruth": "isBlocking is true when the finding's confidence is at least 0.7 and its severity is high or critical."
+  }
+]
