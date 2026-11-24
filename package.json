@@ -17,6 +17,8 @@
     "start": "npm run build && node dist/cli.js",
     "cli": "npm run build && node dist/cli.js",
     "benchmark": "npm run build && node dist/benchmark.js",
+    "bench:tokens": "tsx benchmarks/token-bench.ts",
+    "bench:eval": "tsx benchmarks/accuracy-eval.ts",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -44,8 +46,10 @@
     "@typescript-eslint/eslint-plugin": "^6.19.0",
     "@typescript-eslint/parser": "^6.19.0",
     "eslint": "^8.56.0",
+    "gpt-tokenizer": "4.1.2",
     "jest": "^29.7.0",
     "ts-jest": "^29.1.1",
+    "tsx": "^4.23.15",
     "typescript": "^5.3.3"
   },
   "engines": {

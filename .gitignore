@@ -47,3 +47,6 @@ example-output.json
 
 # Accidental installs under test fixtures
 tests/fixtures/node_modules/
+
+# Cloned third-party repos used by the token benchmark
+benchmarks/.fixtures/
